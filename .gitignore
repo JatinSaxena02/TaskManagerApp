@@ -34,7 +34,8 @@ local.properties
 *.keystore
 !debug.keystore
 .kotlin/
-google-services.json
+# Firebase configuration files
+android/app/google-services.json
 
 # node.js
 #
