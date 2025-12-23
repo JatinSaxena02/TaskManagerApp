@@ -13,6 +13,8 @@ import AddTaskScreen from '../screens/AddTaskScreen';
 
 const Stack = createNativeStackNavigator();
 
+// ... existing imports
+
 export default function RootNavigator() {
   const dispatch = useDispatch();
   const user = useSelector(state => state.auth.user);
@@ -20,39 +22,36 @@ export default function RootNavigator() {
   const [initializing, setInitializing] = useState(true);
   const [hasOnboarded, setHasOnboarded] = useState(null);
 
+  // 1. Function to re-check the onboarding status
+  const checkOnboarding = async () => {
+    const onboarded = await AsyncStorage.getItem('hasOnboarded');
+    setHasOnboarded(onboarded === 'true');
+  };
+
   useEffect(() => {
-    const bootstrap = async () => {
-      const onboarded = await AsyncStorage.getItem('hasOnboarded');
-      setHasOnboarded(onboarded === 'true');
-    };
-
-    bootstrap();
-
+    checkOnboarding();
     const unsubscribe = auth().onAuthStateChanged(firebaseUser => {
       if (firebaseUser) {
-        dispatch(
-          setUser({
-            uid: firebaseUser.uid,
-            email: firebaseUser.email,
-          }),
-        );
+        dispatch(setUser({ uid: firebaseUser.uid, email: firebaseUser.email }));
       } else {
         dispatch(clearUser());
       }
       setInitializing(false);
     });
-
     return unsubscribe;
   }, []);
 
-  if (initializing || hasOnboarded === null) {
-    return null; // splash screen recommended
-  }
+  if (initializing || hasOnboarded === null) return null;
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {!hasOnboarded ? (
-        <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+        // 2. Pass the function as a prop using a render callback
+        <Stack.Screen name="Onboarding">
+          {props => (
+            <OnboardingScreen {...props} onComplete={checkOnboarding} />
+          )}
+        </Stack.Screen>
       ) : user ? (
         <>
           <Stack.Screen name="Home" component={HomeScreen} />
