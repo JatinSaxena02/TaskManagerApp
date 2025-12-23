@@ -135,7 +135,12 @@ export default function LoginScreen({ navigation }) {
           </View>
 
           <TouchableOpacity
-            onPress={() => navigation.navigate('ForgotPassword')}
+            onPress={() =>
+              Alert.alert(
+                'Reset Password',
+                'Password reset flow not implemented yet.',
+              )
+            }
           >
             <Text style={styles.forgotText}>Forgot password?</Text>
           </TouchableOpacity>
@@ -152,8 +157,6 @@ export default function LoginScreen({ navigation }) {
             )}
           </TouchableOpacity>
         </View>
-
-        <Text style={styles.orText}>or log in with</Text>
 
         <View style={styles.socialRow}>
           {/* Social login buttons should be implemented or hidden */}

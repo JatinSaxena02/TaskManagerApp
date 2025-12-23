@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   StatusBar,
   Alert,
+  ScrollView,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,6 +19,10 @@ export default function HomeScreen({ navigation }) {
   const dispatch = useDispatch();
   const tasks = useSelector(state => state.tasks.list);
   const { user } = useSelector(state => state.auth);
+
+  // --- FILTER STATES ---
+  const [filterStatus, setFilterStatus] = useState('All'); // 'All', 'Incomplete', 'Completed'
+  const [filterPriority, setFilterPriority] = useState('All'); // 'All', 'high', 'medium', 'low'
 
   useEffect(() => {
     dispatch(fetchTasks());
@@ -39,8 +44,23 @@ export default function HomeScreen({ navigation }) {
     ]);
   };
 
-  // Sort tasks by dueDate (earliest first), tasks without dueDate at the end
-  const sortedTasks = [...tasks].sort((a, b) => {
+  // --- FILTERING LOGIC ---
+  const filteredTasks = tasks.filter(task => {
+    const statusMatch =
+      filterStatus === 'All'
+        ? true
+        : filterStatus === 'Completed'
+        ? task.completed
+        : !task.completed;
+
+    const priorityMatch =
+      filterPriority === 'All' ? true : task.priority === filterPriority;
+
+    return statusMatch && priorityMatch;
+  });
+
+  // Sort tasks by dueDate
+  const sortedTasks = [...filteredTasks].sort((a, b) => {
     if (!a.dueDate) return 1;
     if (!b.dueDate) return -1;
     return new Date(a.dueDate) - new Date(b.dueDate);
@@ -56,7 +76,7 @@ export default function HomeScreen({ navigation }) {
   if (todayTasks.length) sections.push({ title: 'Today', data: todayTasks });
   if (otherTasks.length) sections.push({ title: 'Other', data: otherTasks });
   if (!sections.length && sortedTasks.length)
-    sections.push({ title: 'All Tasks', data: sortedTasks });
+    sections.push({ title: 'Filtered Tasks', data: sortedTasks });
 
   const renderTaskItem = ({ item }) => (
     <TouchableOpacity
@@ -100,17 +120,15 @@ export default function HomeScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#5F59E1" />
 
+      {/* --- HEADER --- */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <View style={styles.searchBar}>
-            <Icon name="magnify" size={20} color="#AAA" />
-            <Text style={styles.searchPlaceholder}>Search...</Text>
-          </View>
+          <Text style={styles.headerTitle}>My Planner</Text>
           <TouchableOpacity onPress={handleSignOut}>
-            <Icon name="logout" size={24} color="#f01212ff" />
+            <Icon name="logout" size={24} color="#FFF" />
           </TouchableOpacity>
         </View>
-        {/* Styled Username */}
+
         <Text style={styles.username}>
           Hello,{' '}
           <Text style={{ fontWeight: '700', color: '#FFF' }}>
@@ -118,16 +136,95 @@ export default function HomeScreen({ navigation }) {
           </Text>
           !
         </Text>
-        <Text style={styles.headerTitle}>My tasks</Text>
         <Text style={styles.headerSubtitle}>
-          Today,{' '}
           {new Date().toLocaleDateString('en-GB', {
             day: 'numeric',
             month: 'long',
+            year: 'numeric',
           })}
         </Text>
       </View>
 
+      {/* --- HORIZONTAL FILTER BAR --- */}
+      <View style={styles.filterWrapper}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterScroll}
+        >
+          {/* Status Filters */}
+          {['All', 'Incomplete', 'Completed'].map(status => (
+            <TouchableOpacity
+              key={status}
+              style={[
+                styles.filterChip,
+                filterStatus === status && styles.activeFilterChip,
+              ]}
+              onPress={() => setFilterStatus(status)}
+            >
+              <Text
+                style={[
+                  styles.filterChipText,
+                  filterStatus === status && styles.activeFilterText,
+                ]}
+              >
+                {status}
+              </Text>
+            </TouchableOpacity>
+          ))}
+
+          <View style={styles.divider} />
+
+          {/* Priority Filters */}
+          {['high', 'medium', 'low'].map(prio => (
+            <TouchableOpacity
+              key={prio}
+              style={[
+                styles.filterChip,
+                filterPriority === prio && styles.activeFilterChip,
+              ]}
+              onPress={() =>
+                setFilterPriority(filterPriority === prio ? 'All' : prio)
+              }
+            >
+              <Text
+                style={[
+                  styles.filterChipText,
+                  filterPriority === prio && styles.activeFilterText,
+                ]}
+              >
+                {prio.charAt(0).toUpperCase() + prio.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+
+          {/* Clear Filter Button (Visible only when filters are active) */}
+          {(filterStatus !== 'All' || filterPriority !== 'All') && (
+            <>
+              <View style={styles.divider} />
+              <TouchableOpacity
+                style={[styles.filterChip, styles.clearChip]}
+                onPress={() => {
+                  setFilterStatus('All');
+                  setFilterPriority('All');
+                }}
+              >
+                <Icon
+                  name="filter-remove-outline"
+                  size={16}
+                  color="#FF6B6B"
+                  style={{ marginRight: 4 }}
+                />
+                <Text style={[styles.filterChipText, { color: '#FF6B6B' }]}>
+                  Clear
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </ScrollView>
+      </View>
+
+      {/* --- TASK LIST --- */}
       <SectionList
         sections={sections}
         keyExtractor={item => item.id}
@@ -138,14 +235,15 @@ export default function HomeScreen({ navigation }) {
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={() => (
           <View style={{ alignItems: 'center', marginTop: 50 }}>
-            <Icon name="clipboard-text-off-outline" size={60} color="#DDD" />
+            <Icon name="filter-variant-remove" size={60} color="#DDD" />
             <Text style={{ color: '#AAA', marginTop: 10 }}>
-              No tasks found. Tap + to add one!
+              No tasks match these filters.
             </Text>
           </View>
         )}
       />
 
+      {/* --- FAB --- */}
       <TouchableOpacity
         style={styles.fab}
         onPress={() => navigation.navigate('AddTask')}
@@ -173,45 +271,83 @@ const styles = StyleSheet.create({
     padding: 20,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
-    paddingBottom: 25, // Adjusted to fit the username
-  },
-  headerTitle: {
-    color: 'white',
-    fontSize: 23,
-    fontWeight: 'bold',
-    marginTop: 4, // Space between subtitle and title
-  },
-  username: {
-    color: '#F0EFFF', // Light purple-white for contrast
-    fontSize: 25,
-    fontWeight: 'bold',
-    marginTop: 8, // Space below "My tasks"
-    opacity: 0.9,
+    paddingBottom: 25,
   },
   headerTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: 10,
   },
-  searchBar: {
-    flex: 1,
+  headerTitle: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: '600',
+    opacity: 0.9,
+  },
+  username: {
+    color: '#F0EFFF',
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginTop: 5,
+  },
+  headerSubtitle: { color: '#E0E0E0', fontSize: 14, marginTop: 5 },
+
+  // Filter Styles
+  filterWrapper: {
+    marginTop: -15,
+    zIndex: 10,
+  },
+  filterScroll: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  filterChip: {
     backgroundColor: 'white',
-    height: 40,
+    paddingHorizontal: 15,
+    paddingVertical: 8,
     borderRadius: 20,
-    marginHorizontal: 15,
+    marginRight: 10,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 15,
   },
-  searchPlaceholder: { color: '#AAA', marginLeft: 10, fontSize: 14 },
-  headerSubtitle: { color: '#E0E0E0', fontSize: 14 },
+  activeFilterChip: {
+    backgroundColor: '#5F59E1',
+    borderColor: '#5F59E1',
+  },
+  filterChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#7D848F',
+  },
+  activeFilterText: {
+    color: 'white',
+  },
+  clearChip: {
+    borderColor: '#FF6B6B',
+    backgroundColor: '#FFF0F0',
+  },
+  divider: {
+    width: 1,
+    height: 24,
+    backgroundColor: '#DDD',
+    marginRight: 10,
+    alignSelf: 'center',
+  },
+
   listContent: { paddingHorizontal: 20, paddingBottom: 100 },
   sectionHeader: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#2E3A59',
-    marginTop: 25,
+    marginTop: 15,
     marginBottom: 15,
   },
   taskCard: {

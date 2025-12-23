@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import auth from '@react-native-firebase/auth';
+import { useDispatch, useSelector } from 'react-redux';
+import { setUser, clearUser } from '../features/auth/authSlice';
 
 import OnboardingScreen from '../screens/OnboardingScreen';
 import LoginScreen from '../screens/LoginScreen';
@@ -12,8 +14,10 @@ import AddTaskScreen from '../screens/AddTaskScreen';
 const Stack = createNativeStackNavigator();
 
 export default function RootNavigator() {
+  const dispatch = useDispatch();
+  const user = useSelector(state => state.auth.user);
+
   const [initializing, setInitializing] = useState(true);
-  const [user, setUser] = useState(null);
   const [hasOnboarded, setHasOnboarded] = useState(null);
 
   useEffect(() => {
@@ -24,17 +28,25 @@ export default function RootNavigator() {
 
     bootstrap();
 
-    const unsubscribe = auth().onAuthStateChanged(currentUser => {
-      setUser(currentUser);
+    const unsubscribe = auth().onAuthStateChanged(firebaseUser => {
+      if (firebaseUser) {
+        dispatch(
+          setUser({
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+          }),
+        );
+      } else {
+        dispatch(clearUser());
+      }
       setInitializing(false);
     });
 
     return unsubscribe;
   }, []);
 
-  // Block navigation until all async state is resolved
   if (initializing || hasOnboarded === null) {
-    return null; // replace with SplashScreen if needed
+    return null; // splash screen recommended
   }
 
   return (

@@ -132,12 +132,6 @@ export default function RegisterScreen({ navigation }) {
             </TouchableOpacity>
           </View>
 
-          {/* Social Sign Up Section */}
-          <Text style={styles.orText}>or sign up with</Text>
-          <View style={styles.socialRow}>
-            {/* Social login buttons placeholder */}
-          </View>
-
           {/* Login Redirection */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>Already have an account? </Text>
